@@ -65,6 +65,7 @@ Use these tools unless there is a strong reason not to:
 - **Python**
 - **FastAPI**
 - **Uvicorn**
+- **httpx**
 - **Pydantic**
 - **python-dotenv**
 
@@ -114,7 +115,6 @@ Internal flow:
    - recent pitcher starts
    - weather
    - betting lines
-   - result history for each team
 6. Format everything into a clean Discord embed
 7. Return the response
 
