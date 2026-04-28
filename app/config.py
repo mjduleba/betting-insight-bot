@@ -18,6 +18,7 @@ class Settings(BaseModel):
     discord_bot_token: str
     discord_application_id: str
     discord_guild_id: str
+    mlb_stats_api_base_url: str
     app_env: str = "development"
     log_level: str = "INFO"
     port: int = 8000
@@ -34,6 +35,10 @@ def get_settings() -> Settings:
         "discord_bot_token": _read_env("DISCORD_BOT_TOKEN"),
         "discord_application_id": _read_env("DISCORD_APPLICATION_ID"),
         "discord_guild_id": _read_env("DISCORD_GUILD_ID"),
+        "mlb_stats_api_base_url": _read_env(
+            "MLB_STATS_API_BASE_URL",
+            default="https://statsapi.mlb.com/api/v1",
+        ),
         "app_env": _read_env("APP_ENV", default="development"),
         "log_level": _read_env("LOG_LEVEL", default="INFO"),
         "port": _read_env("PORT", default="8000"),
