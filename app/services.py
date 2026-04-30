@@ -5,12 +5,14 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import httpx
 
 from app.api_clients import fetch_schedule_games, fetch_venue_city
 
 logger = logging.getLogger(__name__)
+EASTERN_TZ = ZoneInfo('America/New_York')
 
 
 @dataclass(slots=True)
@@ -39,7 +41,7 @@ async def build_game_snapshot(team: str) -> GameSnapshot:
     Returns:
         GameSnapshot: snapshot used to build Discord embed
     '''
-    # Build a short forward window to find the next scheduled matchup
+    # Build a short forward window to find today's or next game
     start_date = date.today()
     end_date = start_date + timedelta(days=1)
     logger.info(
@@ -92,9 +94,44 @@ def _select_requested_team_game(games: list[dict], team: str) -> dict | None:
         logger.debug('No matching games in schedule payload for %s', team)
         return None
 
-    # If multiple games match in range, pick the earliest one
+    # Sort by gameDate for deterministic selection.
     matching_games.sort(key=lambda game: game.get('gameDate') or '')
-    logger.debug('Matched %s game(s); selecting earliest gameDate', len(matching_games))
+
+    # Choose todays first game, if possible
+    today_et = datetime.now(tz=EASTERN_TZ).date()
+    todays_games = [
+        game
+        for game in matching_games
+        if _extract_game_date_et(game) == today_et
+    ]
+    if todays_games:
+        logger.debug(
+            'Matched %s game(s); selected today-first game in ET',
+            len(matching_games),
+        )
+        return todays_games[0]
+
+    # Choose next available game, if no game today
+    now_utc = datetime.now(tz=UTC)
+    upcoming_games = []
+    for game in matching_games:
+        scheduled = _parse_game_datetime(game.get('gameDate'))
+        if scheduled and scheduled >= now_utc:
+            upcoming_games.append((scheduled, game))
+
+    if upcoming_games:
+        upcoming_games.sort(key=lambda item: item[0])
+        logger.debug(
+            'Matched %s game(s); selected next upcoming game',
+            len(matching_games),
+        )
+        return upcoming_games[0][1]
+
+    # Fallback to earliest scheduled game in query window
+    logger.debug(
+        'Matched %s game(s); no upcoming game found, selecting earliest in window',
+        len(matching_games),
+    )
     return matching_games[0]
 
 
@@ -165,10 +202,10 @@ def _build_fallback_snapshot(team: str) -> GameSnapshot:
         stadium='TBD',
         city='TBD',
         weather='TBD (weather integration pending)',
-        probable_pitchers=f'{team}: TBD vs. TBD: TBD',
+        probable_pitchers='No game found in the current 1-day lookup window.',
         recent_starts=(
-            f'{team}: Recent starts integration pending\n'
-            'TBD: Recent starts integration pending'
+            f'{team}: Current form unavailable (no scheduled game found)\n'
+            'Opponent: Current form unavailable'
         ),
         lines='Moneyline: TBD | Run Line: TBD | Total: TBD',
     )
@@ -200,3 +237,19 @@ def _parse_game_datetime(raw_game_date: str | None) -> datetime | None:
         logger.debug('Parsed gameDate missing tzinfo; defaulting to UTC')
         return parsed.replace(tzinfo=UTC)
     return parsed
+
+
+def _extract_game_date_et(game: dict) -> date | None:
+    '''
+    Convert gameDate into an Eastern Time calendar date.
+
+    Args:
+        game (dict): MLB game payload
+
+    Returns:
+        date | None: ET date when parse succeeds
+    '''
+    scheduled = _parse_game_datetime(game.get('gameDate'))
+    if scheduled is None:
+        return None
+    return scheduled.astimezone(EASTERN_TZ).date()
