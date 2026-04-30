@@ -24,14 +24,8 @@ COMMAND_PAYLOAD = [
                 'options': [
                     {
                         'type': 3,
-                        'name': 'away_team',
-                        'description': 'Away team name',
-                        'required': True,
-                    },
-                    {
-                        'type': 3,
-                        'name': 'home_team',
-                        'description': 'Home team name',
+                        'name': 'team',
+                        'description': 'Team name',
                         'required': True,
                     },
                 ],
