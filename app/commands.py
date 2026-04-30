@@ -40,7 +40,7 @@ async def handle_interaction_command(payload: dict) -> dict:
     if subcommand_name != 'game':
         logger.warning('Unsupported MLB subcommand received: %s', subcommand_name)
         return discord_message_response(
-            content='Unsupported MLB subcommand. Use `/mlb game away_team home_team`.',
+            content='Unsupported MLB subcommand. Use `/mlb game team`.',
             ephemeral=True,
         )
 
@@ -55,21 +55,20 @@ async def handle_interaction_command(payload: dict) -> dict:
     )
     option_map = get_option_map(subcommand.get('options') if subcommand else None)
 
-    # Normalize Home and Away team names
-    away_team = normalize_team_name(str(option_map.get('away_team', '')))
-    home_team = normalize_team_name(str(option_map.get('home_team', '')))
-    logger.info('Parsed matchup request: away_team=%s home_team=%s', away_team, home_team)
+    # Normalize requested team name
+    team = normalize_team_name(str(option_map.get('team', '')))
+    logger.info('Parsed team request: team=%s', team)
 
-    # Validate both Home and Away teams
-    if away_team == 'Unknown Team' or home_team == 'Unknown Team':
-        logger.warning('Missing required team input: away_team=%s home_team=%s', away_team, home_team)
+    # Validate team input
+    if team == 'Unknown Team':
+        logger.warning('Missing required team input')
         return discord_message_response(
-            content='Both `away_team` and `home_team` are required.',
+            content='`team` is required. Use `/mlb game team:<team>`.',
             ephemeral=True,
         )
 
     # Build live game snapshot and Discord embed
-    snapshot = await build_game_snapshot(away_team=away_team, home_team=home_team)
+    snapshot = await build_game_snapshot(team=team)
     embed = build_mlb_game_embed(snapshot)
-    logger.info('Generated MLB embed for matchup: %s at %s', away_team, home_team)
+    logger.info('Generated MLB embed for team request: %s', team)
     return discord_message_response(embeds=[embed])

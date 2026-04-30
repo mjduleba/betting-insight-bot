@@ -29,13 +29,12 @@ class GameSnapshot:
     lines: str
 
 
-async def build_game_snapshot(away_team: str, home_team: str) -> GameSnapshot:
+async def build_game_snapshot(team: str) -> GameSnapshot:
     '''
     Build a live MLB game snapshot with fallback values.
 
     Args:
-        away_team (str): normalized away team name
-        home_team (str): normalized home team name
+        team (str): normalized team name
 
     Returns:
         GameSnapshot: snapshot used to build Discord embed
@@ -44,9 +43,8 @@ async def build_game_snapshot(away_team: str, home_team: str) -> GameSnapshot:
     start_date = date.today()
     end_date = start_date + timedelta(days=1)
     logger.info(
-        'Building game snapshot for matchup=%s at %s window=%s..%s',
-        away_team,
-        home_team,
+        'Building game snapshot for team=%s window=%s..%s',
+        team,
         start_date.isoformat(),
         end_date.isoformat(),
     )
@@ -54,47 +52,44 @@ async def build_game_snapshot(away_team: str, home_team: str) -> GameSnapshot:
     try:
         # Fetch schedule and select requested matchup from the window
         games = await fetch_schedule_games(start_date=start_date, end_date=end_date)
-        selected_game = _select_requested_matchup(games, away_team=away_team, home_team=home_team)
+        selected_game = _select_requested_team_game(games, team=team)
         if selected_game is None:
-            logger.warning('No scheduled game found for matchup: %s at %s', away_team, home_team)
-            return _build_fallback_snapshot(away_team=away_team, home_team=home_team)
+            logger.warning('No scheduled game found for team: %s', team)
+            return _build_fallback_snapshot(team=team)
 
         # Build live snapshot once the target game is found
         snapshot = await _build_snapshot_from_game(
             selected_game=selected_game,
-            away_team=away_team,
-            home_team=home_team,
         )
-        logger.info('Built live game snapshot for matchup: %s at %s', away_team, home_team)
+        logger.info('Built live game snapshot for team: %s', team)
         return snapshot
     except (httpx.HTTPError, ValueError) as exc:
         logger.exception('MLB API request failed, returning fallback snapshot')
-        return _build_fallback_snapshot(away_team=away_team, home_team=home_team)
+        return _build_fallback_snapshot(team=team)
 
 
-def _select_requested_matchup(games: list[dict], away_team: str, home_team: str) -> dict | None:
+def _select_requested_team_game(games: list[dict], team: str) -> dict | None:
     '''
-    Pick the earliest game matching the away/home team pair.
+    Pick the earliest game matching the requested team.
 
     Args:
         games (list[dict]): flattened game payload list
-        away_team (str): normalized away team name
-        home_team (str): normalized home team name
+        team (str): normalized team name
 
     Returns:
         dict | None: selected game payload
     '''
-    # Collect exact away/home team matches from the schedule results
+    # Collect games where the requested team is home or away
     matching_games = []
     for game in games:
         teams = game.get('teams') or {}
         away = (teams.get('away') or {}).get('team') or {}
         home = (teams.get('home') or {}).get('team') or {}
-        if away.get('name') == away_team and home.get('name') == home_team:
+        if away.get('name') == team or home.get('name') == team:
             matching_games.append(game)
 
     if not matching_games:
-        logger.debug('No matching games in schedule payload for %s at %s', away_team, home_team)
+        logger.debug('No matching games in schedule payload for %s', team)
         return None
 
     # If multiple games match in range, pick the earliest one
@@ -105,23 +100,20 @@ def _select_requested_matchup(games: list[dict], away_team: str, home_team: str)
 
 async def _build_snapshot_from_game(
     selected_game: dict,
-    away_team: str,
-    home_team: str,
 ) -> GameSnapshot:
     '''
     Build snapshot from selected MLB schedule game payload.
 
     Args:
         selected_game (dict): selected game payload
-        away_team (str): normalized away team name
-        home_team (str): normalized home team name
-
     Returns:
         GameSnapshot: live snapshot populated from MLB schedule data
     '''
     teams = selected_game.get('teams') or {}
     away_data = teams.get('away') or {}
     home_data = teams.get('home') or {}
+    away_team = ((away_data.get('team') or {}).get('name')) or 'TBD'
+    home_team = ((home_data.get('team') or {}).get('name')) or 'TBD'
     venue = selected_game.get('venue') or {}
 
     # Parse key game attributes from schedule payload
@@ -155,29 +147,28 @@ async def _build_snapshot_from_game(
     )
 
 
-def _build_fallback_snapshot(away_team: str, home_team: str) -> GameSnapshot:
+def _build_fallback_snapshot(team: str) -> GameSnapshot:
     '''
     Build fallback snapshot when live API data is unavailable.
 
     Args:
-        away_team (str): normalized away team name
-        home_team (str): normalized home team name
+        team (str): normalized team name
 
     Returns:
         GameSnapshot: fallback snapshot with placeholders
     '''
-    logger.info('Building fallback game snapshot for matchup: %s at %s', away_team, home_team)
+    logger.info('Building fallback game snapshot for team: %s', team)
     return GameSnapshot(
-        away_team=away_team,
-        home_team=home_team,
+        away_team=team,
+        home_team='TBD',
         scheduled_time=None,
         stadium='TBD',
         city='TBD',
         weather='TBD (weather integration pending)',
-        probable_pitchers=f'{away_team}: TBD vs. {home_team}: TBD',
+        probable_pitchers=f'{team}: TBD vs. TBD: TBD',
         recent_starts=(
-            f'{away_team}: Recent starts integration pending\n'
-            f'{home_team}: Recent starts integration pending'
+            f'{team}: Recent starts integration pending\n'
+            'TBD: Recent starts integration pending'
         ),
         lines='Moneyline: TBD | Run Line: TBD | Total: TBD',
     )
