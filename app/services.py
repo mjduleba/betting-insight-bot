@@ -6,10 +6,11 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
+from typing import Any
 
 import httpx
 
-from app.api_clients import fetch_schedule_games, fetch_venue_city
+from app.api_clients import fetch_pitcher_recent_starts, fetch_schedule_games, fetch_venue_city
 
 logger = logging.getLogger(__name__)
 EASTERN_TZ = ZoneInfo('America/New_York')
@@ -27,7 +28,7 @@ class GameSnapshot:
     city: str
     weather: str
     probable_pitchers: str
-    recent_starts: str
+    recent_starts: dict[str, Any]
     lines: str
 
 
@@ -166,7 +167,13 @@ async def _build_snapshot_from_game(
 
     away_pitcher = ((away_data.get('probablePitcher') or {}).get('fullName')) or 'TBD'
     home_pitcher = ((home_data.get('probablePitcher') or {}).get('fullName')) or 'TBD'
+    away_pitcher_id = ((away_data.get('probablePitcher') or {}).get('id'))
+    home_pitcher_id = ((home_data.get('probablePitcher') or {}).get('id'))
     probable_pitchers = f'{away_team}: {away_pitcher} vs. {home_team}: {home_pitcher}'
+
+    # Retrieve per-start data for each probable pitcher
+    away_recent_starts = await fetch_pitcher_recent_starts(away_pitcher_id)
+    home_recent_starts = await fetch_pitcher_recent_starts(home_pitcher_id)
 
     return GameSnapshot(
         away_team=away_team,
@@ -176,10 +183,13 @@ async def _build_snapshot_from_game(
         city=city,
         weather='TBD (weather integration pending)',
         probable_pitchers=probable_pitchers,
-        recent_starts=(
-            f'{away_team}: Recent starts integration pending\n'
-            f'{home_team}: Recent starts integration pending'
-        ),
+        # Store structured recent start rows for table formatting in embed
+        recent_starts={
+            'away_team': away_team,
+            'home_team': home_team,
+            'away_starts': away_recent_starts,
+            'home_starts': home_recent_starts,
+        },
         lines='Moneyline: TBD | Run Line: TBD | Total: TBD',
     )
 
@@ -203,10 +213,13 @@ def _build_fallback_snapshot(team: str) -> GameSnapshot:
         city='TBD',
         weather='TBD (weather integration pending)',
         probable_pitchers='No game found in the current 1-day lookup window.',
-        recent_starts=(
-            f'{team}: Current form unavailable (no scheduled game found)\n'
-            'Opponent: Current form unavailable'
-        ),
+        # Keep empty table rows in fallback payload for consistent formatter input
+        recent_starts={
+            'away_team': team,
+            'home_team': 'Opponent',
+            'away_starts': [],
+            'home_starts': [],
+        },
         lines='Moneyline: TBD | Run Line: TBD | Total: TBD',
     )
 

@@ -50,7 +50,7 @@ def build_mlb_game_embed(snapshot: GameSnapshot) -> dict:
             },
             {
                 'name': 'Recent Starts',
-                'value': snapshot.recent_starts,
+                'value': _format_recent_starts_table(snapshot),
                 'inline': False,
             },
             {
@@ -63,3 +63,60 @@ def build_mlb_game_embed(snapshot: GameSnapshot) -> dict:
             'text': 'Powered by MLB Stats API for matchup and probable starter data.',
         },
     }
+
+
+def _format_recent_starts_table(snapshot: GameSnapshot) -> str:
+    '''
+    Render recent pitcher starts as compact table-style text blocks.
+
+    Args:
+        snapshot (GameSnapshot): snapshot with structured recent starts data
+
+    Returns:
+        str: formatted recent starts block
+    '''
+    # Parse structured recent starts data from snapshot
+    data = snapshot.recent_starts or {}
+    away_team = str(data.get('away_team') or snapshot.away_team)
+    home_team = str(data.get('home_team') or snapshot.home_team)
+    away_starts = data.get('away_starts') or []
+    home_starts = data.get('home_starts') or []
+
+    # Build table block for each team
+    away_block = _render_pitcher_start_block(away_team, away_starts)
+    home_block = _render_pitcher_start_block(home_team, home_starts)
+    return f'{away_block}\n\n{home_block}'
+
+
+def _render_pitcher_start_block(team_name: str, starts: list[dict]) -> str:
+    '''
+    Render a single pitcher's recent starts as a monospaced table.
+
+    Args:
+        team_name (str): team label
+        starts (list[dict]): list of recent start rows
+
+    Returns:
+        str: formatted block
+    '''
+    # Validate starts before building table block
+    if not starts:
+        return f'**{team_name}**\nNo recent starts available.'
+
+    # Build table headers
+    header = 'DATE       OPP           IP   ER  K'
+    divider = '---------- ------------- ---- --- --'
+    rows = []
+    
+    # Build each table row from start data
+    for start in starts[:3]:
+        date_value = str(start.get('date', 'TBD'))[:10].ljust(10)
+        opp_value = str(start.get('opp', 'TBD'))[:13].ljust(13)
+        ip_value = str(start.get('ip', '0.0')).rjust(4)
+        er_value = str(start.get('er', '0')).rjust(3)
+        k_value = str(start.get('k', '0')).rjust(2)
+        rows.append(f'{date_value} {opp_value} {ip_value} {er_value} {k_value}')
+
+    # Return monospaced table for Discord embed
+    table = '\n'.join([header, divider, *rows])
+    return f'**{team_name}**\n```text\n{table}\n```'
