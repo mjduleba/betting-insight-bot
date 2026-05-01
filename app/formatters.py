@@ -26,21 +26,16 @@ def build_mlb_game_embed(snapshot: GameSnapshot) -> dict:
     # Build embed fields in the MVP response order
     return {
         'title': matchup,
-        'description': 'Live MLB matchup snapshot (weather, lines, and recaps expanding in next milestones).',
+        'description': 'Live MLB matchup snapshot (game info, team/pitching stats, and beting markets).',
         'color': 0x0B6E4F,
         'fields': [
             {
-                'name': 'Game Info',
+                'name': 'Game Info & Weather',
                 'value': (
                     f'Time: {format_game_time(snapshot.scheduled_time)}\n'
                     f'Venue: {snapshot.stadium}\n'
-                    f'Dome: {_to_dome_indicator(snapshot.city)}'
+                    f'Weather: {snapshot.weather}'
                 ),
-                'inline': False,
-            },
-            {
-                'name': 'Weather',
-                'value': snapshot.weather,
                 'inline': False,
             },
             {
@@ -126,25 +121,6 @@ def _parse_probable_pitcher_names(raw_value: str | None) -> tuple[str, str]:
     away_name = away_part.split(':', 1)[1].strip() if ':' in away_part else 'TBD'
     home_name = home_part.split(':', 1)[1].strip() if ':' in home_part else 'TBD'
     return away_name or 'TBD', home_name or 'TBD'
-
-
-def _to_dome_indicator(value: str | None) -> str:
-    '''
-    Convert roof status label into check or x indicator.
-
-    Args:
-        value (str | None): roof status label
-
-    Returns:
-        str: emoji indicator
-    '''
-    # Normalize raw value for matching
-    normalized = (value or '').strip().lower()
-    if normalized in {'dome', 'retractable'}:
-        return '✅'
-    if normalized == 'open':
-        return '❌'
-    return '❓'
 
 
 def _format_team_form(snapshot: GameSnapshot) -> str:

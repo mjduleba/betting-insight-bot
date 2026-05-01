@@ -15,7 +15,6 @@ from app.api_clients import (
     fetch_schedule_games,
     fetch_team_standing_snapshot,
 )
-from app.venue_roof import get_roof_status_for_venue
 
 logger = logging.getLogger(__name__)
 EASTERN_TZ = ZoneInfo('America/New_York')
@@ -30,7 +29,6 @@ class GameSnapshot:
     home_team: str
     scheduled_time: datetime | None
     stadium: str
-    city: str
     weather: str
     team_form: dict[str, str]
     probable_pitchers: str
@@ -167,9 +165,6 @@ async def _build_snapshot_from_game(
     game_date = _parse_game_datetime(game_date_raw)
     stadium = venue.get('name', 'TBD')
 
-    # Resolve dome/roof status from manual venue dictionary
-    city = get_roof_status_for_venue(stadium)
-
     # Retrieve team identifiers for record and form lookups
     away_team_id = away_team_info.get('id')
     home_team_id = home_team_info.get('id')
@@ -191,14 +186,14 @@ async def _build_snapshot_from_game(
     # Retrieve per-start data for each probable pitcher
     away_recent_starts = await fetch_pitcher_recent_starts(away_pitcher_id)
     home_recent_starts = await fetch_pitcher_recent_starts(home_pitcher_id)
+    weather = _format_game_weather(selected_game.get('weather') or {})
 
     return GameSnapshot(
         away_team=away_team,
         home_team=home_team,
         scheduled_time=game_date,
         stadium=stadium,
-        city=city,
-        weather='TBD (weather integration pending)',
+        weather=weather,
         team_form={
             'away_team': away_team,
             'home_team': home_team,
@@ -235,8 +230,7 @@ def _build_fallback_snapshot(team: str) -> GameSnapshot:
         home_team='TBD',
         scheduled_time=None,
         stadium='TBD',
-        city='Unknown',
-        weather='TBD (weather integration pending)',
+        weather='TBD (weather unavailable)',
         team_form={
             'away_team': team,
             'home_team': 'Opponent',
@@ -278,12 +272,43 @@ def _parse_game_datetime(raw_game_date: str | None) -> datetime | None:
     except ValueError:
         logger.warning('Unable to parse gameDate value: %s', raw_game_date)
         return None
-
     if parsed.tzinfo is None:
         logger.debug('Parsed gameDate missing tzinfo; defaulting to UTC')
         return parsed.replace(tzinfo=UTC)
     return parsed
 
+
+def _format_game_weather(weather_data: dict[str, Any]) -> str:
+    '''
+    Format weather hydration into a compact display line.
+
+    Args:
+        weather_data (dict[str, Any]): game weather object from schedule hydration
+
+    Returns:
+        str: formatted weather summary
+    '''
+    if not isinstance(weather_data, dict):
+        return 'TBD (weather unavailable)'
+
+    condition = weather_data.get('condition')
+    temp = weather_data.get('temp')
+    wind = weather_data.get('wind')
+
+    parts: list[str] = []
+    if isinstance(condition, str) and condition.strip():
+        parts.append(condition.strip())
+    if isinstance(temp, str) and temp.strip():
+        parts.append(f'{temp.strip()}°F')
+    elif isinstance(temp, int):
+        parts.append(f'{temp}°F')
+    if isinstance(wind, str) and wind.strip():
+        parts.append(wind.strip())
+
+    if not parts:
+        return 'TBD (weather unavailable)'
+
+    return ', '.join(parts)
 
 def _extract_game_date_et(game: dict) -> date | None:
     '''

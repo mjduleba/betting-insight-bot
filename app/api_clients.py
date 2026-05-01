@@ -31,7 +31,7 @@ async def fetch_schedule_games(start_date: date, end_date: date) -> list[dict]:
         'sportId': 1,
         'startDate': start_date.isoformat(),
         'endDate': end_date.isoformat(),
-        'hydrate': 'probablePitcher',
+        'hydrate': 'probablePitcher,weather',
     }
 
     logger.info(
