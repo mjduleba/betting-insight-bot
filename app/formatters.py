@@ -31,7 +31,11 @@ def build_mlb_game_embed(snapshot: GameSnapshot) -> dict:
         'fields': [
             {
                 'name': 'Game Info',
-                'value': _format_game_info_table(snapshot),
+                'value': (
+                    f'Time: {format_game_time(snapshot.scheduled_time)}\n'
+                    f'Venue: {snapshot.stadium}\n'
+                    f'Dome: {_to_dome_indicator(snapshot.city)}'
+                ),
                 'inline': False,
             },
             {
@@ -87,32 +91,6 @@ def _format_recent_starts_table(snapshot: GameSnapshot) -> str:
     away_block = _render_pitcher_start_block(away_team, away_starts)
     home_block = _render_pitcher_start_block(home_team, home_starts)
     return f'{away_block}\n\n{home_block}'
-
-
-def _format_game_info_table(snapshot: GameSnapshot) -> str:
-    '''
-    Render game info as a compact monospaced table.
-
-    Args:
-        snapshot (GameSnapshot): snapshot with game metadata
-
-    Returns:
-        str: formatted game info block
-    '''
-    # Parse game info values
-    time_value = format_game_time(snapshot.scheduled_time)
-    venue_value = snapshot.stadium or 'TBD'
-    dome_value = _to_dome_indicator(snapshot.city)
-
-    # Build fixed-width table rows for stable Discord alignment
-    header = f'{"FIELD".ljust(8)} VALUE'
-    row_time = f'{"Time".ljust(8)} {time_value}'
-    row_venue = f'{"Venue".ljust(8)} {venue_value}'
-    row_dome = f'{"Dome".ljust(8)} {dome_value}'
-    table = '\n'.join([header, row_time, row_venue, row_dome])
-
-    # Return monospaced table for consistent column rendering
-    return f'```text\n{table}\n```'
 
 
 def _to_dome_indicator(value: str | None) -> str:
