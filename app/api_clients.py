@@ -92,34 +92,9 @@ async def fetch_team_record(team_id: int | None) -> str | None:
     Returns:
         str | None: formatted record like "12-8"
     '''
-    # Validate team ID
-    if team_id is None:
-        return None
-
-    # Create URL to fetch team record based on ID
-    url = f'{MLB_STATS_API_BASE_URL}/teams/{team_id}'
-    
-    # Create parameters for API request body
-    params = {'season': date.today().year}
-    logger.debug('Fetching team record: team_id=%s', team_id)
-
-    # Send request for team record data
-    payload = await _fetch_json(url, params=params)
-    
-    # Validate response
-    teams = payload.get('teams') or []
-    if not teams:
-        return None
-
-    # Extract record, wins, and losses
-    record = (teams[0].get('record') or {})
-    wins = record.get('wins')
-    losses = record.get('losses')
-    
-    # Validate wins and losses data types
-    if isinstance(wins, int) and isinstance(losses, int):
-        return f'{wins}-{losses}'
-    return None
+    # Parse standing snapshot and return record field
+    snapshot = await fetch_team_standing_snapshot(team_id)
+    return snapshot.get('record')
 
 
 async def fetch_team_last10(team_id: int | None) -> str | None:
@@ -132,41 +107,60 @@ async def fetch_team_last10(team_id: int | None) -> str | None:
     Returns:
         str | None: formatted last-10 record like "7-3"
     '''
+    # Parse standing snapshot and return last10 field
+    snapshot = await fetch_team_standing_snapshot(team_id)
+    return snapshot.get('last10')
+
+
+async def fetch_team_standing_snapshot(team_id: int | None) -> dict[str, str]:
+    '''
+    Fetch both overall record and last-10 record from standings payload.
+
+    Args:
+        team_id (int | None): MLB team identifier
+
+    Returns:
+        dict[str, str]: standing snapshot with record and last10 keys
+    '''
     # Validate team ID
     if team_id is None:
-        return None
+        return {'record': 'TBD', 'last10': 'TBD'}
 
     # Create URL for team standings
     url = f'{MLB_STATS_API_BASE_URL}/standings'
-    
-    # Create parameters for API request body
     params = {'leagueId': '103,104', 'season': date.today().year, 'standingsTypes': 'regularSeason'}
-    logger.debug('Fetching team last-10 record: team_id=%s', team_id)
+    logger.debug('Fetching team standing snapshot: team_id=%s', team_id)
 
     # Send request and store payload
     payload = await _fetch_json(url, params=params)
-    
-    # Store recors from response
     records = payload.get('records') or []
-    
-    # Parse wins and loss from records response
+
+    # Parse record and last-10 for the requested team
     for group in records:
         for team_record in group.get('teamRecords') or []:
             team = team_record.get('team') or {}
             if team.get('id') != team_id:
                 continue
 
+            wins = team_record.get('wins')
+            losses = team_record.get('losses')
+            record = f'{wins}-{losses}' if isinstance(wins, int) and isinstance(losses, int) else 'TBD'
+
+            last10 = 'TBD'
             records_split = team_record.get('records') or {}
             split_records = records_split.get('splitRecords') or []
             for split in split_records:
                 if split.get('type') != 'lastTen':
                     continue
+                split_wins = split.get('wins')
+                split_losses = split.get('losses')
+                if isinstance(split_wins, int) and isinstance(split_losses, int):
+                    last10 = f'{split_wins}-{split_losses}'
+                break
 
-                wins = split.get('wins')
-                losses = split.get('losses')
-                if isinstance(wins, int) and isinstance(losses, int):
-                    return f'{wins}-{losses}'
-    return None
+            return {'record': record, 'last10': last10}
+
+    return {'record': 'TBD', 'last10': 'TBD'}
 
 
 async def fetch_pitcher_recent_form(pitcher_id: int | None, starts: int = 3) -> str | None:

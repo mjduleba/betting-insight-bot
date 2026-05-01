@@ -112,11 +112,14 @@ def _format_team_form(snapshot: GameSnapshot) -> str:
     away_last10 = str(data.get('away_last10') or 'TBD')
     home_last10 = str(data.get('home_last10') or 'TBD')
 
-    # Return formatted form summary for both teams
-    return (
-        f'{away_team}: Record {away_record} | Last 10 {away_last10}\n'
-        f'{home_team}: Record {home_record} | Last 10 {home_last10}'
-    )
+    # Build fixed-width table rows for stable Discord alignment
+    header = f'{"TEAM".ljust(20)} {"RECORD".ljust(6)} LAST10'
+    row_away = f'{away_team[:20].ljust(20)} {away_record.ljust(6)} {away_last10}'
+    row_home = f'{home_team[:20].ljust(20)} {home_record.ljust(6)} {home_last10}'
+    table = '\n'.join([header, row_away, row_home])
+
+    # Return monospaced table for consistent column rendering
+    return f'```text\n{table}\n```'
 
 
 def _render_pitcher_start_block(team_name: str, starts: list[dict]) -> str:

@@ -13,8 +13,7 @@ import httpx
 from app.api_clients import (
     fetch_pitcher_recent_starts,
     fetch_schedule_games,
-    fetch_team_last10,
-    fetch_team_record,
+    fetch_team_standing_snapshot,
     fetch_venue_city,
 )
 
@@ -178,11 +177,13 @@ async def _build_snapshot_from_game(
     away_team_id = away_team_info.get('id')
     home_team_id = home_team_info.get('id')
 
-    # Retrieve team record and last-10 data with per-field fallback handling
-    away_record = await fetch_team_record(away_team_id) or 'TBD'
-    home_record = await fetch_team_record(home_team_id) or 'TBD'
-    away_last10 = await fetch_team_last10(away_team_id) or 'TBD'
-    home_last10 = await fetch_team_last10(home_team_id) or 'TBD'
+    # Retrieve team record and last-10 data with one standings call per team
+    away_standing = await fetch_team_standing_snapshot(away_team_id)
+    home_standing = await fetch_team_standing_snapshot(home_team_id)
+    away_record = away_standing.get('record', 'TBD')
+    home_record = home_standing.get('record', 'TBD')
+    away_last10 = away_standing.get('last10', 'TBD')
+    home_last10 = home_standing.get('last10', 'TBD')
 
     away_pitcher = ((away_data.get('probablePitcher') or {}).get('fullName')) or 'TBD'
     home_pitcher = ((home_data.get('probablePitcher') or {}).get('fullName')) or 'TBD'
