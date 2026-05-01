@@ -31,11 +31,7 @@ def build_mlb_game_embed(snapshot: GameSnapshot) -> dict:
         'fields': [
             {
                 'name': 'Game Info',
-                'value': (
-                    f'Time: {format_game_time(snapshot.scheduled_time)}\n'
-                    f'Venue: {snapshot.stadium}\n'
-                    f'Dome: {snapshot.city}'
-                ),
+                'value': _format_game_info_table(snapshot),
                 'inline': False,
             },
             {
@@ -91,6 +87,51 @@ def _format_recent_starts_table(snapshot: GameSnapshot) -> str:
     away_block = _render_pitcher_start_block(away_team, away_starts)
     home_block = _render_pitcher_start_block(home_team, home_starts)
     return f'{away_block}\n\n{home_block}'
+
+
+def _format_game_info_table(snapshot: GameSnapshot) -> str:
+    '''
+    Render game info as a compact monospaced table.
+
+    Args:
+        snapshot (GameSnapshot): snapshot with game metadata
+
+    Returns:
+        str: formatted game info block
+    '''
+    # Parse game info values
+    time_value = format_game_time(snapshot.scheduled_time)
+    venue_value = snapshot.stadium or 'TBD'
+    dome_value = _to_dome_indicator(snapshot.city)
+
+    # Build fixed-width table rows for stable Discord alignment
+    header = f'{"FIELD".ljust(8)} VALUE'
+    row_time = f'{"Time".ljust(8)} {time_value}'
+    row_venue = f'{"Venue".ljust(8)} {venue_value}'
+    row_dome = f'{"Dome".ljust(8)} {dome_value}'
+    table = '\n'.join([header, row_time, row_venue, row_dome])
+
+    # Return monospaced table for consistent column rendering
+    return f'```text\n{table}\n```'
+
+
+def _to_dome_indicator(value: str | None) -> str:
+    '''
+    Convert roof status label into check or x indicator.
+
+    Args:
+        value (str | None): roof status label
+
+    Returns:
+        str: emoji indicator
+    '''
+    # Normalize raw value for matching
+    normalized = (value or '').strip().lower()
+    if normalized in {'dome', 'retractable'}:
+        return '✅'
+    if normalized == 'open':
+        return '❌'
+    return '❓'
 
 
 def _format_team_form(snapshot: GameSnapshot) -> str:
