@@ -34,7 +34,7 @@ def build_mlb_game_embed(snapshot: GameSnapshot) -> dict:
                 'value': (
                     f'Time: {format_game_time(snapshot.scheduled_time)}\n'
                     f'Venue: {snapshot.stadium}\n'
-                    f'Location: {snapshot.city}'
+                    f'Dome: {snapshot.city}'
                 ),
                 'inline': False,
             },

@@ -14,8 +14,8 @@ from app.api_clients import (
     fetch_pitcher_recent_starts,
     fetch_schedule_games,
     fetch_team_standing_snapshot,
-    fetch_venue_city,
 )
+from app.venue_roof import get_roof_status_for_venue
 
 logger = logging.getLogger(__name__)
 EASTERN_TZ = ZoneInfo('America/New_York')
@@ -167,11 +167,8 @@ async def _build_snapshot_from_game(
     game_date = _parse_game_datetime(game_date_raw)
     stadium = venue.get('name', 'TBD')
 
-    venue_id = venue.get('id')
-    city = 'TBD'
-    if isinstance(venue_id, int):
-        # Enrich city from venue endpoint when available
-        city = await fetch_venue_city(venue_id) or 'TBD'
+    # Resolve dome/roof status from manual venue dictionary
+    city = get_roof_status_for_venue(stadium)
 
     # Retrieve team identifiers for record and form lookups
     away_team_id = away_team_info.get('id')
@@ -238,7 +235,7 @@ def _build_fallback_snapshot(team: str) -> GameSnapshot:
         home_team='TBD',
         scheduled_time=None,
         stadium='TBD',
-        city='TBD',
+        city='Unknown',
         weather='TBD (weather integration pending)',
         team_form={
             'away_team': team,

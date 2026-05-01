@@ -51,37 +51,6 @@ async def fetch_schedule_games(start_date: date, end_date: date) -> list[dict]:
     return games
 
 
-async def fetch_venue_city(venue_id: int | None) -> str | None:
-    '''
-    Fetch venue city by venue id.
-
-    Args:
-        venue_id (int | None): MLB venue identifier
-
-    Returns:
-        str | None: city name when available
-    '''
-    # Validate venue identifier
-    if venue_id is None:
-        return None
-
-    # Store URL for venues request
-    url = f'{MLB_STATS_API_BASE_URL}/venues/{venue_id}'
-    logger.debug('Fetching venue details: venue_id=%s', venue_id)
-
-    # Send async GET request for /venues endpoint
-    payload = await _fetch_json(url)
-
-    # Validate response
-    venues = payload.get('venues', [])
-    if not venues:
-        return None
-
-    # Parse venues response and return
-    location = venues[0].get('location') or {}
-    return location.get('city')
-
-
 async def fetch_team_record(team_id: int | None) -> str | None:
     '''
     Fetch team wins-losses record by team id.
