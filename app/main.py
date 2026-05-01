@@ -14,15 +14,13 @@ from app.discord_utils import (
     is_ping_interaction,
     verify_discord_signature,
 )
+from app.logging_config import setup_logging
 
 # Store settings from configuration file
 settings = get_settings()
 
-# Create logger
-logging.basicConfig(
-    level=getattr(logging, settings.log_level.upper(), logging.INFO),
-    format='%(asctime)s %(levelname)s %(name)s %(message)s',
-)
+# Configure logger through centralized logging module
+setup_logging(settings.log_level)
 logger = logging.getLogger(__name__)
 
 # Create app from FastAPI

@@ -7,6 +7,7 @@ import sys
 import httpx
 
 from app.config import get_settings
+from app.logging_config import setup_logging
 
 # Create logger
 logger = logging.getLogger(__name__)
@@ -74,11 +75,8 @@ async def register_guild_commands() -> None:
 
 
 if __name__ == '__main__':
-    # Configure script logger
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(name)s %(message)s',
-    )
+    # Configure script logger through centralized logging module
+    setup_logging('INFO')
 
     try:
         asyncio.run(register_guild_commands())
