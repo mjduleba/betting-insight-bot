@@ -10,7 +10,13 @@ from typing import Any
 
 import httpx
 
-from app.api_clients import fetch_pitcher_recent_starts, fetch_schedule_games, fetch_venue_city
+from app.api_clients import (
+    fetch_pitcher_recent_starts,
+    fetch_schedule_games,
+    fetch_team_last10,
+    fetch_team_record,
+    fetch_venue_city,
+)
 
 logger = logging.getLogger(__name__)
 EASTERN_TZ = ZoneInfo('America/New_York')
@@ -27,6 +33,7 @@ class GameSnapshot:
     stadium: str
     city: str
     weather: str
+    team_form: dict[str, str]
     probable_pitchers: str
     recent_starts: dict[str, Any]
     lines: str
@@ -150,8 +157,10 @@ async def _build_snapshot_from_game(
     teams = selected_game.get('teams') or {}
     away_data = teams.get('away') or {}
     home_data = teams.get('home') or {}
-    away_team = ((away_data.get('team') or {}).get('name')) or 'TBD'
-    home_team = ((home_data.get('team') or {}).get('name')) or 'TBD'
+    away_team_info = away_data.get('team') or {}
+    home_team_info = home_data.get('team') or {}
+    away_team = away_team_info.get('name') or 'TBD'
+    home_team = home_team_info.get('name') or 'TBD'
     venue = selected_game.get('venue') or {}
 
     # Parse key game attributes from schedule payload
@@ -164,6 +173,16 @@ async def _build_snapshot_from_game(
     if isinstance(venue_id, int):
         # Enrich city from venue endpoint when available
         city = await fetch_venue_city(venue_id) or 'TBD'
+
+    # Retrieve team identifiers for record and form lookups
+    away_team_id = away_team_info.get('id')
+    home_team_id = home_team_info.get('id')
+
+    # Retrieve team record and last-10 data with per-field fallback handling
+    away_record = await fetch_team_record(away_team_id) or 'TBD'
+    home_record = await fetch_team_record(home_team_id) or 'TBD'
+    away_last10 = await fetch_team_last10(away_team_id) or 'TBD'
+    home_last10 = await fetch_team_last10(home_team_id) or 'TBD'
 
     away_pitcher = ((away_data.get('probablePitcher') or {}).get('fullName')) or 'TBD'
     home_pitcher = ((home_data.get('probablePitcher') or {}).get('fullName')) or 'TBD'
@@ -182,6 +201,14 @@ async def _build_snapshot_from_game(
         stadium=stadium,
         city=city,
         weather='TBD (weather integration pending)',
+        team_form={
+            'away_team': away_team,
+            'home_team': home_team,
+            'away_record': away_record,
+            'home_record': home_record,
+            'away_last10': away_last10,
+            'home_last10': home_last10,
+        },
         probable_pitchers=probable_pitchers,
         # Store structured recent start rows for table formatting in embed
         recent_starts={
@@ -212,6 +239,14 @@ def _build_fallback_snapshot(team: str) -> GameSnapshot:
         stadium='TBD',
         city='TBD',
         weather='TBD (weather integration pending)',
+        team_form={
+            'away_team': team,
+            'home_team': 'Opponent',
+            'away_record': 'TBD',
+            'home_record': 'TBD',
+            'away_last10': 'TBD',
+            'home_last10': 'TBD',
+        },
         probable_pitchers='No game found in the current 1-day lookup window.',
         # Keep empty table rows in fallback payload for consistent formatter input
         recent_starts={
