@@ -31,6 +31,7 @@ async def fetch_schedule_games(start_date: date, end_date: date) -> list[dict]:
         'sportId': 1,
         'startDate': start_date.isoformat(),
         'endDate': end_date.isoformat(),
+        'hydrate': 'probablePitcher',
     }
 
     logger.info(
@@ -254,7 +255,6 @@ def _format_pitcher_recent_form(starts: list[dict[str, Any]]) -> str | None:
         outs = stat.get('outs')
         er = stat.get('earnedRuns')
         so = stat.get('strikeOuts')
-        
         # Validate outs category
         if not isinstance(outs, int):
             continue
@@ -294,6 +294,9 @@ def _format_recent_start_rows(starts: list[dict[str, Any]]) -> list[dict[str, st
         outs = stat.get('outs')
         er = stat.get('earnedRuns')
         so = stat.get('strikeOuts')
+        hits = stat.get('hits')
+        wins = stat.get('wins')
+        losses = stat.get('losses')
         
         # Validate outs category
         if not isinstance(outs, int):
@@ -301,11 +304,18 @@ def _format_recent_start_rows(starts: list[dict[str, Any]]) -> list[dict[str, st
 
         # Store opponent and append formatted start row
         opponent = (start.get('opponent') or {}).get('name') or 'TBD'
+        wl = '-'
+        if isinstance(wins, int) and wins > 0:
+            wl = 'W'
+        elif isinstance(losses, int) and losses > 0:
+            wl = 'L'
         rows.append(
             {
                 'date': str(start.get('date') or 'TBD'),
                 'opp': str(opponent),
+                'wl': wl,
                 'ip': f'{outs // 3}.{outs % 3}',
+                'h': str(hits if isinstance(hits, int) else 0),
                 'er': str(er if isinstance(er, int) else 0),
                 'k': str(so if isinstance(so, int) else 0),
             }
