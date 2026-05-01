@@ -44,6 +44,11 @@ def build_mlb_game_embed(snapshot: GameSnapshot) -> dict:
                 'inline': False,
             },
             {
+                'name': 'Team Form',
+                'value': _format_team_form(snapshot),
+                'inline': False,
+            },
+            {
                 'name': 'Probable Pitchers',
                 'value': snapshot.probable_pitchers,
                 'inline': False,
@@ -86,6 +91,32 @@ def _format_recent_starts_table(snapshot: GameSnapshot) -> str:
     away_block = _render_pitcher_start_block(away_team, away_starts)
     home_block = _render_pitcher_start_block(home_team, home_starts)
     return f'{away_block}\n\n{home_block}'
+
+
+def _format_team_form(snapshot: GameSnapshot) -> str:
+    '''
+    Render team record and last-10 form lines.
+
+    Args:
+        snapshot (GameSnapshot): snapshot with structured team form data
+
+    Returns:
+        str: formatted team form block
+    '''
+    # Parse structured team form data from snapshot
+    data = snapshot.team_form or {}
+    away_team = str(data.get('away_team') or snapshot.away_team)
+    home_team = str(data.get('home_team') or snapshot.home_team)
+    away_record = str(data.get('away_record') or 'TBD')
+    home_record = str(data.get('home_record') or 'TBD')
+    away_last10 = str(data.get('away_last10') or 'TBD')
+    home_last10 = str(data.get('home_last10') or 'TBD')
+
+    # Return formatted form summary for both teams
+    return (
+        f'{away_team}: Record {away_record} | Last 10 {away_last10}\n'
+        f'{home_team}: Record {home_record} | Last 10 {home_last10}'
+    )
 
 
 def _render_pitcher_start_block(team_name: str, starts: list[dict]) -> str:
