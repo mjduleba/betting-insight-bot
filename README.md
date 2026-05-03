@@ -1,8 +1,8 @@
 # betting-insight-bot
 
 Personal Discord MLB bot built with FastAPI. The app receives Discord slash-command
-interactions, routes them through a shared command registry, and returns an MLB game
-snapshot for `/mlb game team:<team>`.
+interactions, routes them through a shared command registry, and returns either an MLB game
+snapshot for `/mlb game team:<team>` or a daily board view for `/mlb slate`.
 
 ## Prerequisites
 
@@ -64,6 +64,7 @@ This registers:
 
 ```text
 /mlb game team:<team>
+/mlb slate
 ```
 
 ## Manual Test
@@ -83,6 +84,18 @@ probable pitchers, recent starts, and line placeholders. If the MLB data lookup 
 game is found in the lookup window, the bot falls back to a placeholder snapshot instead of
 failing the interaction.
 
+You can also invoke:
+
+```text
+/mlb slate
+```
+
+The bot should return the current Eastern Time MLB slate in start-time order. Upcoming games
+include away/home records, probable pitchers, and probable pitcher win-loss records when
+available. Live and final games prioritize score and status, while postponed or delayed games
+render with their status label and scheduled time. If the full slate does not fit in one embed,
+the bot automatically continues it into additional embeds at row boundaries.
+
 ## Command Architecture
 
 The runtime is now organized around shared command definitions:
@@ -91,10 +104,11 @@ The runtime is now organized around shared command definitions:
 - the shared registry builds runtime routing from those definitions
 - the registration script builds the Discord slash-command payload from those same definitions
 
-Current live command:
+Current live commands:
 
 ```text
 /mlb game team:<team>
+/mlb slate
 ```
 
 ## Project Structure
@@ -124,11 +138,14 @@ app/
         ├── clients/
         │   └── stats_api.py
         ├── commands/
-        │   └── game.py
+        │   ├── game.py
+        │   └── slate.py
         ├── formatters/
-        │   └── game.py
+        │   ├── game.py
+        │   └── slate.py
         └── services/
-            └── game.py
+            ├── game.py
+            └── slate.py
 ```
 
 Supporting docs for the refactor live in:
