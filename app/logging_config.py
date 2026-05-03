@@ -44,3 +44,20 @@ def setup_logging(log_level: str = 'INFO') -> None:
     root_logger.setLevel(resolved_level)
     root_logger.addHandler(stream_handler)
     root_logger.addHandler(file_handler)
+
+    # Configure the app logger hierarchy explicitly so app logs remain visible
+    # even if the ASGI server later reconfigures the root logger.
+    app_logger = logging.getLogger('app')
+    app_logger.handlers.clear()
+    app_logger.setLevel(resolved_level)
+    app_logger.addHandler(stream_handler)
+    app_logger.addHandler(file_handler)
+    app_logger.propagate = False
+
+    # Keep script entrypoints that log as `__main__` on the same handlers.
+    main_logger = logging.getLogger('__main__')
+    main_logger.handlers.clear()
+    main_logger.setLevel(resolved_level)
+    main_logger.addHandler(stream_handler)
+    main_logger.addHandler(file_handler)
+    main_logger.propagate = False

@@ -27,6 +27,18 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title='Discord MLB Bot')
 
 
+@app.on_event('startup')
+async def configure_runtime_logging() -> None:
+    '''
+    Re-apply application logging after the ASGI server has initialized.
+
+    This keeps app loggers attached even when the server configures its own
+    logging handlers during startup or reload.
+    '''
+    setup_logging(settings.log_level)
+    logger.info('Application logging configured at level=%s', settings.log_level)
+
+
 @app.get('/health')
 async def healthcheck() -> dict[str, str]:
     '''
