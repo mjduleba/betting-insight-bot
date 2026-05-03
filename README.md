@@ -1,8 +1,8 @@
 # betting-insight-bot
 
-Personal Discord MLB bot built with FastAPI. The current bootstrap phase wires Discord
-interactions end to end and returns a mock `/mlb game` embed while the real data sources
-are still being built.
+Personal Discord MLB bot built with FastAPI. The app receives Discord slash-command
+interactions, routes them through a shared command registry, and returns an MLB game
+snapshot for `/mlb game team:<team>`.
 
 ## Prerequisites
 
@@ -63,7 +63,7 @@ python3 scripts/register_commands.py
 This registers:
 
 ```text
-/mlb game away_team:<team> home_team:<team>
+/mlb game team:<team>
 ```
 
 ## Manual Test
@@ -75,7 +75,64 @@ This registers:
 5. In your private Discord server, invoke:
 
 ```text
-/mlb game away_team:Yankees home_team:Red Sox
+/mlb game team:Yankees
 ```
 
-The bot should return a mock embed containing matchup, venue, weather, pitcher, and line placeholders.
+The bot should return an embed containing matchup, game time, venue, weather, team form,
+probable pitchers, recent starts, and line placeholders. If the MLB data lookup fails or no
+game is found in the lookup window, the bot falls back to a placeholder snapshot instead of
+failing the interaction.
+
+## Command Architecture
+
+The runtime is now organized around shared command definitions:
+
+- sport modules define their commands and handlers
+- the shared registry builds runtime routing from those definitions
+- the registration script builds the Discord slash-command payload from those same definitions
+
+Current live command:
+
+```text
+/mlb game team:<team>
+```
+
+## Project Structure
+
+```text
+app/
+├── main.py
+├── config.py
+├── logging_config.py
+├── discord/
+│   ├── auth.py
+│   ├── command_specs.py
+│   ├── parsing.py
+│   └── responses.py
+├── commands/
+│   ├── registry.py
+│   ├── router.py
+│   └── types.py
+├── shared/
+│   ├── errors.py
+│   └── time.py
+└── sports/
+    └── mlb/
+        ├── command_specs.py
+        ├── models.py
+        ├── normalization.py
+        ├── clients/
+        │   └── stats_api.py
+        ├── commands/
+        │   └── game.py
+        ├── formatters/
+        │   └── game.py
+        └── services/
+            └── game.py
+```
+
+Supporting docs for the refactor live in:
+
+- `docs/context/architecture-index.md`
+- `docs/context/command-architecture.md`
+- `docs/context/file-structure-refactor.md`
