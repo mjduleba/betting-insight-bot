@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import logging
 
+from app.discord.parsing import get_option_map
 from app.discord.responses import discord_message_response
-from app.helpers import get_option_map
 from app.sports.mlb.formatters.game import build_mlb_game_embed
 from app.sports.mlb.models import MlbGameRequest
 from app.sports.mlb.normalization import normalize_team_name

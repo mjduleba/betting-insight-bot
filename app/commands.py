@@ -1,1 +1,0 @@
-from app.commands.router import route_interaction_command as handle_interaction_command

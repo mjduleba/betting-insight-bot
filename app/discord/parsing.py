@@ -50,3 +50,18 @@ def extract_command_identity(payload: dict) -> tuple[str | None, str | None]:
         subcommand_name,
     )
     return command_name, subcommand_name
+
+
+def get_option_map(options: list[dict] | None) -> dict[str, object]:
+    '''
+    Flatten a Discord option list into a dictionary keyed by option name.
+
+    Args:
+        options (list[dict] | None): Discord option payload list
+
+    Returns:
+        dict[str, object]: flattened dictionary keyed by option name
+    '''
+    if not options:
+        return {}
+    return {option['name']: option.get('value') for option in options if 'name' in option}
