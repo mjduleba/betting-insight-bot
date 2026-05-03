@@ -17,7 +17,15 @@ MLB_STATS_API_BASE_URL = get_settings().mlb_stats_api_base_url
 
 async def fetch_schedule_games(start_date: date, end_date: date) -> list[dict]:
     '''
-    Fetch MLB schedule games in a date range.
+    API wrapper function to return all scheduled games between the 
+    provided start and end dates, inclusive.
+
+    Args:
+        start_date (date): request start date
+        end_date (date): request end date
+
+    Returns:
+        list[dict]: parse games from schedule response
     '''
     # Store URL for schedule call
     url = f'{MLB_STATS_API_BASE_URL}/schedule'
@@ -48,7 +56,14 @@ async def fetch_schedule_games(start_date: date, end_date: date) -> list[dict]:
 
 async def fetch_team_record(team_id: int | None) -> str | None:
     '''
-    Fetch team wins-losses record by team id.
+    API wrapper function to return a team's current season
+    wins-losses record by team id.
+
+    Args:
+        team_id (int | None): MLB team id
+
+    Returns:
+        str | None: formatted wins-losses record when available
     '''
     # Parse standing snapshot and return record field
     snapshot = await fetch_team_standing_snapshot(team_id)
@@ -57,7 +72,14 @@ async def fetch_team_record(team_id: int | None) -> str | None:
 
 async def fetch_team_last10(team_id: int | None) -> str | None:
     '''
-    Fetch team last-10 record by team id.
+    API wrapper function to return a team's last-10 record
+    by team id.
+
+    Args:
+        team_id (int | None): MLB team id
+
+    Returns:
+        str | None: formatted last-10 record when available
     '''
     # Parse standing snapshot and return last10 field
     snapshot = await fetch_team_standing_snapshot(team_id)
@@ -66,7 +88,14 @@ async def fetch_team_last10(team_id: int | None) -> str | None:
 
 async def fetch_team_standing_snapshot(team_id: int | None) -> dict[str, str]:
     '''
-    Fetch overall record and last-10 record from standings payload.
+    API wrapper function to return a compact standings snapshot
+    containing record and last-10 values for one team.
+
+    Args:
+        team_id (int | None): MLB team id
+
+    Returns:
+        dict[str, str]: standing snapshot with `record` and `last10`
     '''
     # Validate team ID
     if team_id is None:
@@ -111,7 +140,15 @@ async def fetch_team_standing_snapshot(team_id: int | None) -> dict[str, str]:
 
 async def fetch_pitcher_recent_form(pitcher_id: int | None, starts: int = 3) -> str | None:
     '''
-    Fetch recent starting pitcher form summary from game log stats.
+    API wrapper function to return a probable pitcher's compact
+    recent-form summary from pitching game logs.
+
+    Args:
+        pitcher_id (int | None): MLB pitcher id
+        starts (int): number of recent starts to include
+
+    Returns:
+        str | None: formatted recent-form summary when available
     '''
     # Validate pitcher ID
     if pitcher_id is None:
@@ -137,12 +174,45 @@ async def fetch_pitcher_recent_form(pitcher_id: int | None, starts: int = 3) -> 
     return _format_pitcher_recent_form(starts_list)
 
 
+async def fetch_pitcher_record(pitcher_id: int | None) -> str | None:
+    '''
+    API wrapper function to return a probable pitcher's current
+    season win-loss record.
+
+    Args:
+        pitcher_id (int | None): MLB pitcher id
+
+    Returns:
+        str | None: formatted season win-loss record when available
+    '''
+    # Validate pitcher ID
+    if pitcher_id is None:
+        return None
+
+    # Create URL and params for pitcher stats request
+    url = f'{MLB_STATS_API_BASE_URL}/people/{pitcher_id}/stats'
+    params = {'stats': 'season', 'group': 'pitching'}
+    logger.debug('Fetching pitcher season record: pitcher_id=%s', pitcher_id)
+
+    # Send request and store payload
+    payload = await _fetch_json(url, params=params)
+    return _extract_pitcher_record(payload)
+
+
 async def fetch_pitcher_recent_starts(
     pitcher_id: int | None,
     starts: int = 3,
 ) -> list[dict[str, str]]:
     '''
-    Fetch a pitcher's recent starts as row data for table formatting.
+    API wrapper function to return a probable pitcher's recent
+    starts as row data for table formatting.
+
+    Args:
+        pitcher_id (int | None): MLB pitcher id
+        starts (int): number of recent starts to include
+
+    Returns:
+        list[dict[str, str]]: formatted recent start rows
     '''
     # Validate pitcher ID
     if pitcher_id is None:
@@ -165,7 +235,14 @@ async def fetch_pitcher_recent_starts(
 
 def _extract_recent_starts(payload: dict[str, Any], max_starts: int) -> list[dict[str, Any]]:
     '''
-    Extract recent starts from game log splits.
+    Parse recent starts from a pitcher game-log payload.
+
+    Args:
+        payload (dict[str, Any]): decoded pitcher stats payload
+        max_starts (int): max number of starts to return
+
+    Returns:
+        list[dict[str, Any]]: recent pitching-start split payloads
     '''
     # Retrieve stats list and validate
     stats = payload.get('stats') or []
@@ -183,9 +260,48 @@ def _extract_recent_starts(payload: dict[str, Any], max_starts: int) -> list[dic
     return only_starts[:max_starts]
 
 
+def _extract_pitcher_record(payload: dict[str, Any]) -> str | None:
+    '''
+    Parse season wins-losses record from a pitcher stats payload.
+
+    Args:
+        payload (dict[str, Any]): decoded pitcher stats payload
+
+    Returns:
+        str | None: formatted season win-loss record when available
+    '''
+    # Retrieve stats section and validate
+    stats = payload.get('stats') or []
+    if not stats:
+        return None
+
+    for stats_group in stats:
+        # Retrieve splits section and validate
+        splits = stats_group.get('splits') or []
+        if not splits:
+            continue
+        
+        # Extract wins and losses from first split
+        stat = (splits[0] or {}).get('stat') or {}
+        wins = stat.get('wins')
+        losses = stat.get('losses')
+        
+        # Validate wins and losses values, return if valid
+        if isinstance(wins, int) and isinstance(losses, int):
+            return f'{wins}-{losses}'
+
+    return None
+
+
 def _format_pitcher_recent_form(starts: list[dict[str, Any]]) -> str | None:
     '''
-    Format compact recent starts pitching summary.
+    Format a compact recent-form summary from pitcher starts.
+
+    Args:
+        starts (list[dict[str, Any]]): recent pitching-start splits
+
+    Returns:
+        str | None: compact recent-form summary when available
     '''
     # Validate starts
     if not starts:
@@ -226,7 +342,13 @@ def _format_pitcher_recent_form(starts: list[dict[str, Any]]) -> str | None:
 
 def _format_recent_start_rows(starts: list[dict[str, Any]]) -> list[dict[str, str]]:
     '''
-    Convert raw start splits into simple row dictionaries.
+    Convert raw pitching-start splits into simple table rows.
+
+    Args:
+        starts (list[dict[str, Any]]): recent pitching-start splits
+
+    Returns:
+        list[dict[str, str]]: formatted recent start rows
     '''
     # Create output row collection
     rows: list[dict[str, str]] = []
@@ -273,6 +395,13 @@ def _format_recent_start_rows(starts: list[dict[str, Any]]) -> list[dict[str, st
 async def _fetch_json(url: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
     '''
     Send an async GET request and return decoded JSON.
+
+    Args:
+        url (str): request URL
+        params (dict[str, Any] | None): query params for the request
+
+    Returns:
+        dict[str, Any]: decoded JSON response body
     '''
     async with httpx.AsyncClient(timeout=20.0) as client:
         response = await client.get(url, params=params)
