@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-from zoneinfo import ZoneInfo
+from app.shared.time import format_game_time
 
 TEAM_ALIASES = {
     'angels': 'Los Angeles Angels',
@@ -71,23 +70,3 @@ def get_option_map(options: list[dict] | None) -> dict[str, object]:
     if not options:
         return {}
     return {option['name']: option.get('value') for option in options if 'name' in option}
-
-
-def format_game_time(dt: datetime | None) -> str:
-    '''
-    Helper function to universally flatten the start time of the game.
-
-    Args:
-        dt (datetime | None): DateTime date
-
-    Returns:
-        str: start time formatted as string
-    '''
-    if dt is None:
-        return 'TBD'
-
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=ZoneInfo('UTC'))
-
-    eastern = dt.astimezone(ZoneInfo('America/New_York'))
-    return eastern.strftime('%a, %b %d at %-I:%M %p ET')

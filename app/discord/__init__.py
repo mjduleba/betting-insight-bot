@@ -1,0 +1,1 @@
+'''Shared Discord helpers package.'''
