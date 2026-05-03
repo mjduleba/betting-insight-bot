@@ -7,6 +7,8 @@ This is meant to be a **resume-friendly side project**, not a production-grade p
 
 The goal is to build a bot that responds to a slash command and returns a quick MLB game snapshot.
 
+For architecture refactor work, load `docs/context/architecture-index.md` first. It points to the command-routing and file-structure notes that supplement this broader project brief.
+
 ---
 
 ## Core MVP Goal
