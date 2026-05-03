@@ -23,6 +23,11 @@ async def route_interaction_command(payload: dict) -> dict[str, object]:
     Route a Discord interaction payload through the shared command registry.
     '''
     identity = parse_command_identity(payload)
+    logger.info(
+        'Routing interaction command: sport=%s subcommand=%s',
+        identity.sport,
+        identity.subcommand,
+    )
     handler = get_handler(identity.sport, identity.subcommand)
     if handler is None:
         logger.warning(

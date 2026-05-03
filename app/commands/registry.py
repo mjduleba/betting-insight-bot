@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.commands.types import CommandHandler
+from app.sports.mlb.commands.game import handle_mlb_game_command
 
 CommandKey = tuple[str, str]
 
@@ -42,3 +43,13 @@ def registered_commands() -> dict[CommandKey, CommandHandler]:
     Return a shallow copy of the current registry.
     '''
     return dict(_REGISTRY)
+
+
+def _register_builtin_handlers() -> None:
+    '''
+    Register the built-in command handlers supported by the current app.
+    '''
+    register_handler('mlb', 'game', handle_mlb_game_command)
+
+
+_register_builtin_handlers()

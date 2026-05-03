@@ -6,7 +6,7 @@ import logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from app.commands import handle_interaction_command
+from app.commands.router import route_interaction_command
 from app.config import get_settings
 from app.discord_utils import (
     APPLICATION_COMMAND_TYPE,
@@ -86,5 +86,5 @@ async def interactions(request: Request) -> JSONResponse:
 
     # Handle slash command and build response
     logger.info('Received command interaction: %s', payload.get('data', {}).get('name'))
-    response = await handle_interaction_command(payload)
+    response = await route_interaction_command(payload)
     return JSONResponse(response)
