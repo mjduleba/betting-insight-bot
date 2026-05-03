@@ -3,9 +3,53 @@ from __future__ import annotations
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from app.sports.mlb.models import MlbSlateGameRow
+from app.sports.mlb.models import MlbSlateGameRow, MlbSlateSnapshot
 
 EASTERN_TZ = ZoneInfo('America/New_York')
+EMBED_DESCRIPTION_LIMIT = 4096
+EMBED_COLOR = 0x0B6E4F
+
+
+def build_mlb_slate_embeds(snapshot: MlbSlateSnapshot) -> list[dict]:
+    '''
+    Build one or more Discord embeds for an MLB slate snapshot.
+
+    Args:
+        snapshot (MlbSlateSnapshot): normalized slate snapshot
+
+    Returns:
+        list[dict]: ordered embed payloads for the daily slate
+    '''
+    # Build the stable title prefix from the ET board date
+    title = f'MLB Slate - {snapshot.board_date.strftime("%a, %b %d")}'
+
+    # Return a single empty-state embed when no games are scheduled
+    if not snapshot.games:
+        return [
+            {
+                'title': title,
+                'description': 'No MLB games scheduled today.',
+                'color': EMBED_COLOR,
+            }
+        ]
+
+    # Render every game row in slate order before packing embed descriptions
+    row_lines = [format_mlb_slate_row(row) for row in snapshot.games]
+    count_line = _format_game_count(snapshot.total_game_count)
+    description_chunks = _split_slate_descriptions(count_line, row_lines)
+
+    # Build one embed per packed description chunk
+    embeds: list[dict] = []
+    for index, description in enumerate(description_chunks):
+        embed_title = title if index == 0 else f'{title} (cont.)'
+        embeds.append(
+            {
+                'title': embed_title,
+                'description': description,
+                'color': EMBED_COLOR,
+            }
+        )
+    return embeds
 
 
 def format_mlb_slate_row(row: MlbSlateGameRow) -> str:
@@ -207,3 +251,50 @@ def _format_short_game_time(game_time: datetime | None) -> str:
 
     eastern = game_time.astimezone(EASTERN_TZ)
     return eastern.strftime('%-I:%M ET')
+
+
+def _format_game_count(total_games: int) -> str:
+    '''
+    Render the summary game-count line for the slate description.
+
+    Args:
+        total_games (int): total number of slate games
+
+    Returns:
+        str: formatted count summary line
+    '''
+    # Match singular or plural game wording automatically
+    noun = 'game' if total_games == 1 else 'games'
+    return f'{total_games} {noun}'
+
+
+def _split_slate_descriptions(count_line: str, row_lines: list[str]) -> list[str]:
+    '''
+    Split formatted slate rows into embed-safe description chunks.
+
+    Args:
+        count_line (str): summary line for the first embed
+        row_lines (list[str]): ordered formatted game rows
+
+    Returns:
+        list[str]: packed description chunks split at row boundaries
+    '''
+    # Seed the first embed with the game-count summary line
+    chunks: list[str] = []
+    current_lines = [count_line]
+
+    # Append each row to the current chunk unless it would exceed the limit
+    for row_line in row_lines:
+        candidate_lines = [*current_lines, row_line]
+        candidate_description = '\n'.join(candidate_lines)
+        if len(candidate_description) <= EMBED_DESCRIPTION_LIMIT:
+            current_lines = candidate_lines
+            continue
+
+        chunks.append('\n'.join(current_lines))
+        current_lines = [row_line]
+
+    # Flush the final chunk after all rows are packed
+    if current_lines:
+        chunks.append('\n'.join(current_lines))
+    return chunks
