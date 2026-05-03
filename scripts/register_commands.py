@@ -2,38 +2,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
 
 import httpx
 
 from app.config import get_settings
+from app.discord.command_specs import collect_discord_command_payload
 from app.logging_config import setup_logging
 
 # Create logger
 logger = logging.getLogger(__name__)
-
-# Standardize command payload
-COMMAND_PAYLOAD = [
-    {
-        'name': 'mlb',
-        'description': 'MLB matchup tools',
-        'options': [
-            {
-                'type': 1,
-                'name': 'game',
-                'description': 'Get a pregame MLB matchup snapshot',
-                'options': [
-                    {
-                        'type': 3,
-                        'name': 'team',
-                        'description': 'Team name',
-                        'required': True,
-                    },
-                ],
-            }
-        ],
-    }
-]
 
 
 async def register_guild_commands() -> None:
@@ -55,12 +32,15 @@ async def register_guild_commands() -> None:
         'Authorization': f'Bot {settings.discord_bot_token}',
         'Content-Type': 'application/json',
     }
+
+    # Build the Discord payload from shared command definitions
+    command_payload = collect_discord_command_payload()
     logger.info('Registering guild commands for guild_id=%s', settings.discord_guild_id)
     logger.debug('Discord register URL: %s', url)
 
     # Send command payload to Discord
     async with httpx.AsyncClient(timeout=20.0) as client:
-        response = await client.put(url, headers=headers, json=COMMAND_PAYLOAD)
+        response = await client.put(url, headers=headers, json=command_payload)
 
     # Return success when registration call succeeds
     if response.is_success:

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from app.commands.types import CommandHandler
-from app.sports.mlb.commands.game import handle_mlb_game_command
+from app.discord.command_specs import collect_command_definitions
 
+# Registry key for `(sport, subcommand)` routing
 CommandKey = tuple[str, str]
 
+# In-memory command registry used by the shared router
 _REGISTRY: dict[CommandKey, CommandHandler] = {}
 
 
@@ -49,7 +51,10 @@ def _register_builtin_handlers() -> None:
     '''
     Register the built-in command handlers supported by the current app.
     '''
-    register_handler('mlb', 'game', handle_mlb_game_command)
+    # Register handlers from the shared command definition source of truth
+    for definition in collect_command_definitions():
+        register_handler(definition.sport, definition.subcommand, definition.handler)
 
 
+# Initialize the registry at import time for the current runtime
 _register_builtin_handlers()
